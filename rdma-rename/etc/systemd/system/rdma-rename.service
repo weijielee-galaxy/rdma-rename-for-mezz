@@ -1,6 +1,7 @@
 [Unit]
 Description=Rename RDMA devices
-After=network.target
+After=network.target nvidia-fabricmanager.service
+Wants=nvidia-fabricmanager.service
 
 [Service]
 Type=oneshot
@@ -9,3 +10,5 @@ RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
+
+systemctl status nvidia-fabricmanager.service

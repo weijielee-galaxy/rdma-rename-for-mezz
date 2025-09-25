@@ -1,0 +1,7 @@
+Package: rdma-rename
+Version: 1.0.0
+Section: utils
+Priority: optional
+Architecture: all
+Maintainer: System Administrator <admin@example.com>
+Description: Rename RDMA devices at boot This package provides a systemd service that renames RDMA devices from mlx5_X to specific names (mezz_X) during system startup.

@@ -1,0 +1,15 @@
+#!/bin/bash
+set -e
+
+# Make script executable
+chmod 755 /usr/local/bin/rdma-rename.sh
+
+# Reload systemd, enable and start the service
+systemctl daemon-reload
+systemctl enable rdma-rename.service
+# Only try to start if we're not in the middle of initial installation
+if [ -d /run/systemd/system ]; then
+    systemctl start rdma-rename.service || true
+fi
+
+exit 0

@@ -1,0 +1,11 @@
+[Unit]
+Description=Rename RDMA devices
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/rdma-rename.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e
+
+# Stop and disable the service before package removal
+if [ -d /run/systemd/system ]; then
+    systemctl stop rdma-rename.service || true
+    systemctl disable rdma-rename.service || true
+fi
+
+exit 0

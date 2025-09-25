@@ -10,5 +10,3 @@ RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
-
-systemctl status nvidia-fabricmanager.service

@@ -1,87 +1,53 @@
 #!/bin/bash
 
-# Function to check device mapping with detailed reporting
+# Function to check if device mappings are correct
 check_device_mapping() {
     echo "=== Checking RDMA device to network interface mapping ==="
     echo ""
 
     local all_correct=true
-    local mezz_mismatched=()
-    local mlx5_mismatched=()
-    local other_mismatched=()
-
-    # Counters for statistics
-    local total_devices=0
-    local matched_devices=0
-    local mismatched_devices=0
+    local mismatched_devices=()
 
     # Read ibdev2netdev output and check each line
     while read -r line; do
-        ((total_devices++))
-
-        # Extract IB device name, network interface name, and status
+        # Extract IB device name and network interface name
         ib_dev=$(echo "$line" | awk '{print $1}')
         net_name=$(echo "$line" | awk -F' ==> ' '{print $2}' | awk '{print $1}')
         status=$(echo "$line" | grep -oP '\((Up|Down)\)' | tr -d '()')
 
-        # Check if IB device name matches network interface name
-        if [ "$ib_dev" = "$net_name" ]; then
-            echo "✓ $ib_dev -> $net_name [$status] (MATCHED)"
-            ((matched_devices++))
+        # Determine expected network interface name
+        if [[ "$ib_dev" =~ ^mezz_([0-9]+)$ ]]; then
+            # For mezz_X, expected name is mezz_X (same as IB device)
+            expected_net="mezz_${BASH_REMATCH[1]}"
+        elif [[ "$ib_dev" =~ ^mlx5_([0-9]+)$ ]]; then
+            # For mlx5_X, expected name is ibX
+            expected_net="ib${BASH_REMATCH[1]}"
         else
-            echo "✗ $ib_dev -> $net_name [$status] (MISMATCHED)"
-            ((mismatched_devices++))
-            all_correct=false
+            # Unknown device type, skip
+            echo "? $ib_dev -> $net_name [$status] (UNKNOWN TYPE)"
+            continue
+        fi
 
-            # Categorize mismatched devices
-            if [[ "$ib_dev" =~ ^mezz_ ]]; then
-                mezz_mismatched+=("$ib_dev -> $net_name")
-            elif [[ "$ib_dev" =~ ^mlx5_ ]]; then
-                mlx5_mismatched+=("$ib_dev -> $net_name")
-            else
-                other_mismatched+=("$ib_dev -> $net_name")
-            fi
+        # Check if actual matches expected
+        if [ "$net_name" = "$expected_net" ]; then
+            echo "✓ $ib_dev -> $net_name [$status] (CORRECT)"
+        else
+            echo "✗ $ib_dev -> $net_name [$status] (Expected: $expected_net)"
+            all_correct=false
+            mismatched_devices+=("$ib_dev -> $net_name (Expected: $expected_net)")
         fi
     done < <(ibdev2netdev)
 
     echo ""
     echo "=== Check Summary ==="
-    echo "Total devices: $total_devices"
-    echo "Matched: $matched_devices"
-    echo "Mismatched: $mismatched_devices"
-    echo ""
-
     if [ "$all_correct" = true ]; then
         echo "✓ All device mappings are correct!"
         return 0
     else
         echo "✗ Found mismatched device mappings:"
-        echo ""
-
-        if [ ${#mezz_mismatched[@]} -gt 0 ]; then
-            echo "Mismatched mezz devices:"
-            for device in "${mezz_mismatched[@]}"; do
-                echo "  - $device"
-            done
-            echo ""
-        fi
-
-        if [ ${#mlx5_mismatched[@]} -gt 0 ]; then
-            echo "Mismatched mlx5 devices:"
-            for device in "${mlx5_mismatched[@]}"; do
-                echo "  - $device"
-            done
-            echo ""
-        fi
-
-        if [ ${#other_mismatched[@]} -gt 0 ]; then
-            echo "Other mismatched devices:"
-            for device in "${other_mismatched[@]}"; do
-                echo "  - $device"
-            done
-            echo ""
-        fi
-
+        for device in "${mismatched_devices[@]}"; do
+            echo "  - $device"
+        done
         return 1
     fi
 }
@@ -92,7 +58,7 @@ exit_code=$?
 
 echo ""
 if [ $exit_code -eq 0 ]; then
-    echo "Recommendation: No action needed."
+    echo "No action needed."
 else
     echo "Recommendation: Run rdma-netdev-rename.sh to fix the mapping."
 fi

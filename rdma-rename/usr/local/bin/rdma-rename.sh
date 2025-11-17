@@ -20,6 +20,20 @@ try_command() {
     return 1
 }
 
+# Check if mezz_0 already exists in ibdev2netdev output
+echo "=== Checking current RDMA device names ==="
+if ibdev2netdev | grep -q "^mezz_0 "; then
+    echo "mezz_0 device already exists. Skipping RDMA device renaming."
+    echo "Current RDMA devices:"
+    ibdev2netdev
+    SKIP_RDMA_RENAME=true
+else
+    echo "mezz_0 device not found. Will proceed with RDMA device renaming."
+    SKIP_RDMA_RENAME=false
+fi
+
+echo ""
+
 # Define the RDMA device rename commands as an array
 commands=(
     "rdma dev set mlx5_1 name mezz_0"
@@ -35,18 +49,23 @@ commands=(
     "rdma dev set mlx5_11 name mlx5_7"
 )
 
-# Run each RDMA device rename command
-echo "=== Renaming RDMA devices ==="
-for cmd in "${commands[@]}"; do
-    try_command "$cmd"
-done
+# Run each RDMA device rename command only if mezz_0 doesn't exist
+if [ "$SKIP_RDMA_RENAME" = false ]; then
+    echo "=== Renaming RDMA devices ==="
+    for cmd in "${commands[@]}"; do
+        try_command "$cmd"
+    done
 
-echo ""
-echo "=== RDMA device rename completed ==="
-echo ""
+    echo ""
+    echo "=== RDMA device rename completed ==="
+    echo ""
 
-# Wait a moment for the system to stabilize
-sleep 2
+    # Wait a moment for the system to stabilize
+    sleep 2
+else
+    echo "=== RDMA device renaming skipped ==="
+    echo ""
+fi
 
 # Network interface renaming section
 declare -A ib_to_temp  # Mapping from IB device name to temporary name
